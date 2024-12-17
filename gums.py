@@ -21,7 +21,7 @@ DEFAULT_MULTICAST = "235.35.3.5:3535"
 
 MAJOR = "0"
 MINOR = "0"
-MAINTAINENCE = "31"
+MAINTAINENCE = "33"
 
 
 def version():
@@ -74,7 +74,7 @@ class GumS:
         """
         million = 1024 * 1024
         start_time = time.time()
-        time.sleep(0.00001)
+        time.sleep(0.0001)
         now = time.time
         total_bytes = 0
         with reader(vid) as gum:
