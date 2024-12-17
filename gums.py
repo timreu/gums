@@ -74,6 +74,7 @@ class GumS:
         """
         million = 1024 * 1024
         start_time = time.time()
+        time.sleep(0.1)
         now = time.time
         total_bytes = 0
         with reader(vid) as gum:
