@@ -67,30 +67,37 @@ class GumS:
             sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
         return sock
 
-    def iter_dgrams(self, vid):
+    def iter_dgrams(self, vid, target_rate_kbit = None):
         """
         iter_dgrams iterates over the video and sends
         self.dgram_size chunks of video to the socket.
         """
         million = 1024 * 1024
+        if target_rate_kbit:
+            byterate = target_rate_kbit * 1024 / 8
+            dgrams_per_second = byterate /DGRAM_SIZE
+            sleep_time_rate_limiter = 1 / dgrams_per_second
+        else:
+            sleep_time_rate_limiter = 0
         start_time = time.time()
         time.sleep(0.0001)
         now = time.time
         total_bytes = 0
         with reader(vid) as gum:
             for dgram in iter(partial(gum.read, DGRAM_SIZE), b""):
+                time.sleep(sleep_time_rate_limiter)
                 self.sock.sendto(dgram, self.dest_grp)
                 total_bytes += len(dgram)
                 elapsed = now() - start_time
                 rate = (total_bytes / million) / elapsed
                 print(
-                    f"\t{total_bytes/million:0.2f} MB sent in {elapsed:5.2f} seconds. {rate:3.2f} MB/Sec",
+                    f"\t{total_bytes/million:0.2f} MB sent in {elapsed:5.2f} seconds. {rate:3.2f} MB/Sec, {rate*8*1024:3.2f} kBit/Sec.",
                     end="\r",
                     file=sys.stderr,
                 )
             print("\n", file=sys.stderr)
 
-    def send_stream(self, vid):
+    def send_stream(self, vid, target_rate_kbit = None):
         """
         send_stream sets multicast ttl if needed,
         prints socket address info,
@@ -110,7 +117,7 @@ class GumS:
         )
         print(f"\n\tSource\n\t{src_ip}:{src_port}\n", file=sys.stderr)
 
-        self.iter_dgrams(vid)
+        self.iter_dgrams(vid, target_rate_kbit)
         self.sock.close()
 
 
@@ -150,6 +157,14 @@ def parse_args():
         "--ttl",
         default=1,
         help="Multicast TTL 1 - 255",
+    )
+    
+    parser.add_argument(
+        "-r",
+        "--ratelimit",
+        default=None,
+        type=float,
+        help="Target rate limit for sending in kbit. Default is sending with maximum speed.",
     )
 
     parser.add_argument(
@@ -208,7 +223,7 @@ def cli():
     ttl = int(args.ttl).to_bytes(1, byteorder="big")
     dest_addr = args.addr
     gummie = GumS(dest_addr, ttl, args.bind_addr)
-    gummie.send_stream(args.input)
+    gummie.send_stream(args.input, args.ratelimit)
     sys.exit()
 
 
